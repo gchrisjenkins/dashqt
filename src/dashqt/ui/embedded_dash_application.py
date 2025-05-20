@@ -20,153 +20,6 @@ from flask import Flask
 from plotly.graph_objs import Figure
 
 
-class EmbeddedBrowser:
-
-    _server_shutdown_callback: Callable[[], None] | None = None
-
-    def __init__(self,
-        url: str,
-        background_color: str = "#111111",
-        title: str = None,
-        x: int = 100,
-        y: int = 100,
-        width: int = 800,
-        height: int = 600
-    ):
-        super().__init__()
-
-        self.__url: str = url
-        self.__background_color: str = background_color
-        self.__title: str = title if title else "Browser Window"
-        self.__x: int = x
-        self.__y: int = y
-        self.__width: int = width
-        self.__height: int = height
-
-        cls = type(self)
-        self.__logger: logging.Logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
-
-        self.__original_qt_message_handler: object = qInstallMessageHandler(self._qt_message_handler)
-        self.__qt_logger = logging.getLogger("Qt")
-
-        self.__app: QApplication | None = None
-        self.__main_window: QMainWindow | None = None
-
-    def run_forever(self) -> int:
-
-        exit_code = 1
-        try:
-            self.__app = QCoreApplication.instance() or QApplication([])
-            self._build_main_window()
-            exit_code = self.__app.exec()  # this thread blocks until event loop has terminated
-            self.__logger.debug(f"The browser event loop has terminated with exit code: {exit_code}")
-        except Exception as e:
-            self.__logger.error(f"Error occurred in the browser event loop: {e}")
-            self.__logger.error(traceback.format_exc())
-        finally:
-            if self.__original_qt_message_handler:
-                qInstallMessageHandler(self.__original_qt_message_handler)
-                self.__logger.debug("Restored original Qt message handler")
-            return exit_code
-
-    def set_server_shutdown_callback(self, callback: Callable[[], None]):
-        """
-        Sets the function to call to trigger a server shutdown.
-        """
-        self._server_shutdown_callback = callback
-
-    def close_main_window(self):
-        """
-        Queue a request to close the browser window from another thread.
-        """
-        self.__logger.info("Received request to close browser window.")
-        if self.__app and self.__main_window:
-            # Use invokeMethod for thread-safe Qt calls from non-GUI threads
-            # QueuedConnection ensures the request runs in the Qt event loop when allotted time
-            # noinspection PyTypeChecker
-            request_successful = QMetaObject.invokeMethod(
-                self.__main_window,
-                "close",  # Call the QWidget.close() method
-                Qt.QueuedConnection  # type: ignore
-            )
-            if not request_successful:
-                self.__logger.error("Failed to queue the close request to the browser event loop.")
-            else:
-                self.__logger.debug("Successfully queued close request.")
-        else:
-            self.__logger.warning("Cannot request close: browser app or main window not available.")
-
-    def _build_main_window(self):
-
-        self.__main_window = self._BrowserMainWindow(self)
-        self.__main_window.setWindowTitle(self.__title)
-        self.__main_window.setGeometry(self.__x, self.__y, self.__width, self.__height)
-
-        view = QWebEngineView()
-        view.page().setBackgroundColor(QColor(self.__background_color))
-        view.setUrl(QUrl(self.__url))
-
-        self.__main_window.setCentralWidget(view)
-        self.__main_window.show()
-
-    def _qt_message_handler(self, type_: QtMsgType, context: QMessageLogContext, message: str) -> None:
-        """
-        Redirects Qt messages to Python's logging system.
-        """
-
-        # Map Qt message types to Python logging levels
-        match type_:
-            case QtMsgType.QtDebugMsg:
-                level = logging.DEBUG
-            case QtMsgType.QtInfoMsg:
-                level = logging.INFO
-            case QtMsgType.QtWarningMsg:
-                level = logging.WARNING
-            case QtMsgType.QtCriticalMsg:
-                level = logging.ERROR
-            case QtMsgType.QtFatalMsg:
-                level = logging.CRITICAL  # Fatal is critical in Python logging context
-            case _:
-                level = logging.WARNING  # Default for unknown types
-
-        self.__qt_logger.log(level, message)
-
-    class _BrowserMainWindow(QMainWindow):
-        """
-        Internal MainWindow class to handle the close event.
-        """
-
-        def __init__(self, browser: 'EmbeddedBrowser', *args, **kwargs):
-            super().__init__(*args, **kwargs)
-
-            cls = type(self)
-            self.__logger: logging.Logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
-
-            self._browser = browser
-
-        def closeEvent(self, event: QEvent) -> None:
-            """Override closeEvent to trigger server shutdown before closing."""
-            self.__logger.debug("Close event triggered on browser window")
-
-            # Check if the shutdown callback exists and call it
-            if self._browser._server_shutdown_callback:
-                self.__logger.info("Initiating server shutdown via callback...")
-                try:
-                    # Call the actual self.__wsgi_server.shutdown() method
-                    self._browser._server_shutdown_callback()
-                except Exception as e:
-                    # Log if calling the shutdown function fails
-                    self.__logger.error(f"Error occurred during server shutdown callback: {e}")
-            else:
-                # This shouldn't happen if setup is correct, but good to check
-                self.__logger.warning("Server shutdown callback not set, cannot shut down server.")
-
-            # Accept the event to allow the window to close and Qt event loop to exit
-            event.accept()
-            self.__logger.debug("Close event on browser window accepted")
-            # Note: Accepting the event will lead to QApplication.exec() returning in the run_forever() method
-
-
 class EmbeddedDashApplicationListener(ABC):
     """
     Abstract base class for listeners that react to lifecycle events
@@ -211,7 +64,7 @@ class EmbeddedDashApplication(ABC):
         def health_check():
             return "OK", 200
 
-        self.__browser: EmbeddedBrowser | None = None
+        self.__browser: EmbeddedDashApplication._EmbeddedBrowser | None = None
         self.__browser_thread: threading.Thread | None = None
 
     def run_forever(self):
@@ -396,7 +249,7 @@ class EmbeddedDashApplication(ABC):
         try:
             self.__browser_thread = threading.Thread(
                 target=self._run_browser,
-                name=f"{EmbeddedBrowser.__name__}Thread",
+                name=f"{EmbeddedDashApplication._EmbeddedBrowser.__name__}Thread",
                 daemon=False
             )
             self.__browser_thread.start()
@@ -410,7 +263,9 @@ class EmbeddedDashApplication(ABC):
     def _run_browser(self):
 
         try:
-            self.__browser = EmbeddedBrowser(url=f"http://127.0.0.1:{self.__server_port}", title=self.__title)
+            self.__browser = EmbeddedDashApplication._EmbeddedBrowser(
+                url=f"http://127.0.0.1:{self.__server_port}", title=self.__title
+            )
 
             if self.__wsgi_server:
                 try:
@@ -476,3 +331,149 @@ class EmbeddedDashApplication(ABC):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(('', 0))
             return s.getsockname()[1]
+
+    class _EmbeddedBrowser:
+
+        _server_shutdown_callback: Callable[[], None] | None = None
+
+        def __init__(self,
+            url: str,
+            background_color: str = "#111111",
+            title: str = None,
+            x: int = 100,
+            y: int = 100,
+            width: int = 800,
+            height: int = 600
+        ):
+            super().__init__()
+
+            self.__url: str = url
+            self.__background_color: str = background_color
+            self.__title: str = title if title else "Browser Window"
+            self.__x: int = x
+            self.__y: int = y
+            self.__width: int = width
+            self.__height: int = height
+
+            cls = type(self)
+            self.__logger: logging.Logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
+
+            self.__original_qt_message_handler: object = qInstallMessageHandler(self._qt_message_handler)
+            self.__qt_logger = logging.getLogger("Qt")
+
+            self.__app: QApplication | None = None
+            self.__main_window: QMainWindow | None = None
+
+        def run_forever(self) -> int:
+
+            exit_code = 1
+            try:
+                self.__app = QCoreApplication.instance() or QApplication([])
+                self._build_main_window()
+                exit_code = self.__app.exec()  # this thread blocks until event loop has terminated
+                self.__logger.debug(f"The browser event loop has terminated with exit code: {exit_code}")
+            except Exception as e:
+                self.__logger.error(f"Error occurred in the browser event loop: {e}")
+                self.__logger.error(traceback.format_exc())
+            finally:
+                if self.__original_qt_message_handler:
+                    qInstallMessageHandler(self.__original_qt_message_handler)
+                    self.__logger.debug("Restored original Qt message handler")
+                return exit_code
+
+        def set_server_shutdown_callback(self, callback: Callable[[], None]):
+            """
+            Sets the function to call to trigger a server shutdown.
+            """
+            self._server_shutdown_callback = callback
+
+        def close_main_window(self):
+            """
+            Queue a request to close the browser window from another thread.
+            """
+            self.__logger.info("Received request to close browser window.")
+            if self.__app and self.__main_window:
+                # Use invokeMethod for thread-safe Qt calls from non-GUI threads
+                # QueuedConnection ensures the request runs in the Qt event loop when allotted time
+                # noinspection PyTypeChecker
+                request_successful = QMetaObject.invokeMethod(
+                    self.__main_window,
+                    "close",  # Call the QWidget.close() method
+                    Qt.QueuedConnection  # type: ignore
+                )
+                if not request_successful:
+                    self.__logger.error("Failed to queue the close request to the browser event loop.")
+                else:
+                    self.__logger.debug("Successfully queued close request.")
+            else:
+                self.__logger.warning("Cannot request close: browser app or main window not available.")
+
+        def _build_main_window(self):
+
+            self.__main_window = self._BrowserMainWindow(self)
+            self.__main_window.setWindowTitle(self.__title)
+            self.__main_window.setGeometry(self.__x, self.__y, self.__width, self.__height)
+
+            view = QWebEngineView()
+            view.page().setBackgroundColor(QColor(self.__background_color))
+            view.setUrl(QUrl(self.__url))
+
+            self.__main_window.setCentralWidget(view)
+            self.__main_window.show()
+
+        def _qt_message_handler(self, type_: QtMsgType, context: QMessageLogContext, message: str) -> None:
+            """
+            Redirects Qt messages to Python's logging system.
+            """
+
+            # Map Qt message types to Python logging levels
+            match type_:
+                case QtMsgType.QtDebugMsg:
+                    level = logging.DEBUG
+                case QtMsgType.QtInfoMsg:
+                    level = logging.INFO
+                case QtMsgType.QtWarningMsg:
+                    level = logging.WARNING
+                case QtMsgType.QtCriticalMsg:
+                    level = logging.ERROR
+                case QtMsgType.QtFatalMsg:
+                    level = logging.CRITICAL  # Fatal is critical in Python logging context
+                case _:
+                    level = logging.WARNING  # Default for unknown types
+
+            self.__qt_logger.log(level, message)
+
+        class _BrowserMainWindow(QMainWindow):
+            """
+            Internal MainWindow class to handle the close event.
+            """
+
+            def __init__(self, browser: 'EmbeddedDashApplication._EmbeddedBrowser', *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                cls = type(self)
+                self.__logger: logging.Logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
+
+                self._browser = browser
+
+            def closeEvent(self, event: QEvent) -> None:
+                """Override closeEvent to trigger server shutdown before closing."""
+                self.__logger.debug("Close event triggered on browser window")
+
+                # Check if the shutdown callback exists and call it
+                if self._browser._server_shutdown_callback:
+                    self.__logger.info("Initiating server shutdown via callback...")
+                    try:
+                        # Call the actual self.__wsgi_server.shutdown() method
+                        self._browser._server_shutdown_callback()
+                    except Exception as e:
+                        # Log if calling the shutdown function fails
+                        self.__logger.error(f"Error occurred during server shutdown callback: {e}")
+                else:
+                    # This shouldn't happen if setup is correct, but good to check
+                    self.__logger.warning("Server shutdown callback not set, cannot shut down server.")
+
+                # Accept the event to allow the window to close and Qt event loop to exit
+                event.accept()
+                self.__logger.debug("Close event on browser window accepted")
+                # Note: Accepting the event will lead to QApplication.exec() returning in the run_forever() method

@@ -19,8 +19,8 @@ Follow these steps to create a self‑contained Conda environment for DashQt:
 2. **Create & activate a new Conda environment**
 
    ```bash
-   conda create --name py311-dashqt python=3.11 -y
-   conda activate py311-dashqt
+   conda create --name dashqt python=3.11 -y
+   conda activate dashqt
    ```
 
 3. **Install PySide6 with WebEngine support**
