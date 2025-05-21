@@ -1,1 +1,1 @@
-from dashqt.embedded_dash_application import EmbeddedDashApplication
+from dashqt.embedded_dash_application import EmbeddedDashApplication, EmbeddedDashApplicationListener
