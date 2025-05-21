@@ -7,7 +7,7 @@ from dash import html, dcc, Output, Input
 from dash.development.base_component import Component
 from plotly.graph_objs import Figure
 
-from dashqt.ui import EmbeddedDashApplication
+from dashqt import EmbeddedDashApplication
 
 
 class ExampleDashApp(EmbeddedDashApplication):
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(
         level=logging.DEBUG,
-        format="%(asctime)s | %(threadName)s | %(levelname)s | %(name)s - %(message)s",
+        format="%(asctime)s | %(levelname)s | %(threadName)s | %(name)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
     # Optionally reduce noise from libraries

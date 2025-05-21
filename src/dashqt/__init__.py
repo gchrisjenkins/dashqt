@@ -1,0 +1,1 @@
+from dashqt.embedded_dash_application import EmbeddedDashApplication
