@@ -43,13 +43,13 @@ class EmbeddedDashApplicationListener(ABC):
 
 class EmbeddedDashApplication(ABC):
 
-    def __init__(self, title: str | None = None, listener: EmbeddedDashApplicationListener | None = None):
-
-        self.__title: str | None = title
-        self.__listener: EmbeddedDashApplicationListener | None = listener
+    def __init__(self, listener: EmbeddedDashApplicationListener | None = None, name: str | None = None):
 
         cls = type(self)
-        self.__logger: logging.Logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
+        self._logger: logging.Logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
+
+        self.__listener: EmbeddedDashApplicationListener | None = listener
+        self.__name: str | None = name
 
         self.__server: Dash | None = None
         self.__server_port: int | None = None
@@ -69,18 +69,18 @@ class EmbeddedDashApplication(ABC):
 
     def run_forever(self):
 
-        self.__logger.info(f"Starting {type(self).__name__}...")
+        self._logger.info(f"Starting {type(self).__name__}...")
         # Removed server_started/browser_started flags as requested
         started_successfully = False  # Use a single flag
 
         try:
             if not self._start_server():
-                self.__logger.error("The Dash server failed to start. Shutting down...")
+                self._logger.error("The Dash server failed to start. Shutting down...")
                 self.__exit_code = 1
                 # Proceed to finally block for stop notification
 
             elif not self._start_browser():  # Only run if server started
-                self.__logger.error("The browser failed to start. Shutting down...")
+                self._logger.error("The browser failed to start. Shutting down...")
                 self._request_server_shutdown_from_main()
                 if self.__server_thread:
                     self.__server_thread.join(timeout=5)
@@ -89,20 +89,20 @@ class EmbeddedDashApplication(ABC):
             else:
                 # --- Both started successfully ---
                 started_successfully = True
-                self.__logger.info("The Dash server and browser started successfully")
+                self._logger.info("The Dash server and browser started successfully")
                 # --- Call listener on successful start ---
                 if self.__listener:
                     try:
                         self.__listener.on_dash_app_started(self)
                     except Exception as e:
-                        self.__logger.error(f"Error calling listener.on_app_started: {e}")
+                        self._logger.error(f"Error calling listener.on_app_started: {e}")
 
                 # --- Main Wait Logic ---
-                self.__logger.info("Dash application is running and monitoring threads...")
+                self._logger.info("Dash application is running and monitoring threads...")
                 if self.__server_thread:
                     self.__server_thread.join()
                     if self.__exit_code != 0 and self.__browser_thread and self.__browser_thread.is_alive():
-                        self.__logger.warning(
+                        self._logger.warning(
                             "The Dash server terminated unexpectedly (with error), requesting a browser close"
                         )
                         self.request_browser_close()  # Use public method
@@ -110,11 +110,11 @@ class EmbeddedDashApplication(ABC):
                 if self.__browser_thread:
                     self.__browser_thread.join(timeout=5)
                     if self.__browser_thread.is_alive():
-                        self.__logger.error("Browser thread did not terminate after join timeout!")
+                        self._logger.error("Browser thread did not terminate after join timeout!")
 
         except Exception as e:
-            self.__logger.error(f"An unexpected error occurred while running Dash application: {e}")
-            self.__logger.error(traceback.format_exc())
+            self._logger.error(f"An unexpected error occurred while running Dash application: {e}")
+            self._logger.error(traceback.format_exc())
             self.__exit_code = 1  # Ensure exit code reflects error
             # Attempt cleanup only if startup was likely successful enough to warrant it
             if started_successfully:
@@ -122,30 +122,30 @@ class EmbeddedDashApplication(ABC):
 
         finally:
             # --- Notify listener on stop, regardless of success/failure ---
-            self.__logger.info(f"{type(self).__name__} finishing with exit code: {self.__exit_code}")
+            self._logger.info(f"{type(self).__name__} finishing with exit code: {self.__exit_code}")
             # --- Call listener on stop ---
             if self.__listener:
                 try:
                     # Pass the final exit code
                     self.__listener.on_dash_app_stopped(self, self.__exit_code)
                 except Exception as e:  # Catch potential errors in listener code
-                    self.__logger.error(f"Error calling listener.on_app_stopped: {e}")
+                    self._logger.error(f"Error calling listener.on_app_stopped: {e}")
 
             # Final thread status check
             if self.__server_thread and self.__server_thread.is_alive():
-                self.__logger.warning("Server thread still alive in final cleanup.")
+                self._logger.warning("Server thread still alive in final cleanup.")
             if self.__browser_thread and self.__browser_thread.is_alive():
-                self.__logger.warning("Browser thread still alive in final cleanup.")
+                self._logger.warning("Browser thread still alive in final cleanup.")
 
     def request_browser_close(self):
         """
         Requests the embedded browser window to close gracefully.
         """
-        self.__logger.info("Received external request to close browser window.")
+        self._logger.info("Received external request to close browser window.")
         if self.__browser:
             self.__browser.close_main_window()  # Delegate to EmbeddedBrowser instance
         else:
-            self.__logger.warning("Cannot request browser close: browser instance not available.")
+            self._logger.warning("Cannot request browser close: browser instance not available.")
 
     @property
     def exit_code(self):
@@ -177,7 +177,7 @@ class EmbeddedDashApplication(ABC):
                 self.__server.callback(outputs, inputs)(func)
 
             self.__server_port = self._find_available_port()
-            self.__logger.debug(f"Starting the Dash server on '127.0.0.1:{self.__server_port}'...")
+            self._logger.debug(f"Starting the Dash server on '127.0.0.1:{self.__server_port}'...")
 
             self.__server_thread = threading.Thread(
                 target=self._run_server,
@@ -192,7 +192,7 @@ class EmbeddedDashApplication(ABC):
             while True:
 
                 if time.time() - startup_time > startup_max_wait:
-                    self.__logger.error(f"Dash server health check timed out after {startup_max_wait} seconds")
+                    self._logger.error(f"Dash server health check timed out after {startup_max_wait} seconds")
                     # Attempt to stop a potentially hanging server thread
                     self._request_server_shutdown_from_main()
                     return False  # Indicate startup failure
@@ -200,26 +200,26 @@ class EmbeddedDashApplication(ABC):
                 try:
                     response = requests.get(f"http://127.0.0.1:{self.__server_port}/health", timeout=1)
                     if response.status_code == 200:
-                        self.__logger.debug("The Dash server is ready")
+                        self._logger.debug("The Dash server is ready")
                         return True  # Indicate successful startup
                 except requests.exceptions.ConnectionError:
                     # Server not up yet, wait and retry
-                    self.__logger.warning(f"The Dash server is not ready, retrying again in {retry_interval} seconds...")
+                    self._logger.warning(f"The Dash server is not ready, retrying again in {retry_interval} seconds...")
                     time.sleep(retry_interval)
                 except requests.exceptions.RequestException as e:
-                    self.__logger.warning(
+                    self._logger.warning(
                         f"Health check request failed: {e}, retrying again in {retry_interval} seconds..."
                     )
                     time.sleep(retry_interval)
 
                 # Check if the server thread died during startup
                 if not self.__server_thread.is_alive():
-                    self.__logger.error("Dash server thread terminated unexpectedly during startup")
+                    self._logger.error("Dash server thread terminated unexpectedly during startup")
                     return False  # Indicate startup failure
 
         except Exception as e:
-            self.__logger.error(f"Failed to start Dash server: {e}")
-            self.__logger.error(traceback.format_exc())
+            self._logger.error(f"Failed to start Dash server: {e}")
+            self._logger.error(traceback.format_exc())
             # Attempt shutdown if in a partially started state
             if self.__server_thread and self.__server_thread.is_alive():
                 self._request_server_shutdown_from_main()
@@ -237,12 +237,12 @@ class EmbeddedDashApplication(ABC):
             self.__wsgi_server.serve_forever()
 
         except Exception as e:
-            self.__logger.error(f"Error occurred while running the Dash server: {e}")
-            self.__logger.error(traceback.format_exc())
+            self._logger.error(f"Error occurred while running the Dash server: {e}")
+            self._logger.error(traceback.format_exc())
             self.__exit_code = 1
 
         finally:
-            self.__logger.debug("The Dash server thread has terminated")
+            self._logger.debug("The Dash server thread has terminated")
 
     def _start_browser(self) -> bool:
 
@@ -256,15 +256,15 @@ class EmbeddedDashApplication(ABC):
             return True  # Indicate successful startup
 
         except Exception as e:
-            self.__logger.error(f"Failed to start browser thread: {e}")
-            self.__logger.error(traceback.format_exc())
+            self._logger.error(f"Failed to start browser thread: {e}")
+            self._logger.error(traceback.format_exc())
             return False  # Indicate startup failure
 
     def _run_browser(self):
 
         try:
             self.__browser = EmbeddedDashApplication._EmbeddedBrowser(
-                url=f"http://127.0.0.1:{self.__server_port}", title=self.__title
+                url=f"http://127.0.0.1:{self.__server_port}", title=self.__name
             )
 
             if self.__wsgi_server:
@@ -278,47 +278,47 @@ class EmbeddedDashApplication(ABC):
                         self.__exit_code = exit_code
 
                 except Exception as e:
-                    self.__logger.error(f"Error occurred while running the browser: {e}")
-                    self.__logger.error(traceback.format_exc())
+                    self._logger.error(f"Error occurred while running the browser: {e}")
+                    self._logger.error(traceback.format_exc())
                     self.__exit_code = 1
 
             else:
-                self.__logger.error("Can't set shutdown callback: WSGI server instance not available")
+                self._logger.error("Can't set shutdown callback: WSGI server instance not available")
                 self.__exit_code = 1
 
         except Exception as e:
-            self.__logger.error(f"Error occurred while starting the browser: {e}")
-            self.__logger.error(traceback.format_exc())
+            self._logger.error(f"Error occurred while starting the browser: {e}")
+            self._logger.error(traceback.format_exc())
             self.__exit_code = 1
 
-        self.__logger.debug("The browser thread has terminated")
+        self._logger.debug("The browser thread has terminated")
 
     def _request_server_shutdown_from_main(self):
         """
         Helper method to request server shutdown from main thread (e.g., on startup error).
         """
         if self.__wsgi_server:
-            self.__logger.info("Requesting WSGI server shutdown from main thread...")
+            self._logger.info("Requesting WSGI server shutdown from main thread...")
             try:
                 # Call shutdown on the server instance
                 self.__wsgi_server.shutdown()
             except Exception as e:
-                self.__logger.error(f"Error calling wsgi_server.shutdown(): {e}")
+                self._logger.error(f"Error calling wsgi_server.shutdown(): {e}")
         else:
-            self.__logger.warning("Cannot request server shutdown: WSGI server instance not available.")
+            self._logger.warning("Cannot request server shutdown: WSGI server instance not available.")
 
     def _cleanup_on_error(self):
         """
         Helper method for cleanup on major error in run_forever() method.
         """
-        self.__logger.warning("Attempting cleanup after error in run_forever()...")
+        self._logger.warning("Attempting cleanup after error in run_forever()...")
         # Request browser close if it's running
         if self.__browser_thread and self.__browser_thread.is_alive():
-            self.__logger.info("Requesting browser close due to error")
+            self._logger.info("Requesting browser close due to error")
             self.request_browser_close()  # Use the public method
         # Request server shutdown if it's running
         if self.__server_thread and self.__server_thread.is_alive():
-            self.__logger.info("Requesting server shutdown due to error")
+            self._logger.info("Requesting server shutdown due to error")
             self._request_server_shutdown_from_main()
         # Give threads a moment to potentially react
         time.sleep(0.5)

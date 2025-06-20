@@ -13,7 +13,7 @@ from dashqt import EmbeddedDashApplication
 class ExampleDashApp(EmbeddedDashApplication):
 
     def __init__(self):
-        super().__init__(type(self).__name__)
+        super().__init__(name=type(self).__name__)
         self.__df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv')
 
     def _build_layout(self) -> Component | list[Component]:
