@@ -1,12 +1,9 @@
-name: CI Full
+name: CI Fast
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
-      - main
+      - develop
   workflow_dispatch:
 
 jobs:
@@ -21,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: Install package and dev dependencies
@@ -43,7 +40,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: Install package and dev dependencies
@@ -55,25 +52,9 @@ jobs:
         run: python -m mypy
 
   test:
-    name: test (${{ matrix.os }}, py${{ matrix.python-version }})
+    name: test (ubuntu-22.04, py3.12)
     needs: [lint, typecheck]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            python-version: "3.10"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-          - os: ubuntu-22.04
-            python-version: "3.13"
-          - os: ubuntu-latest
-            python-version: "3.12"
-          - os: macos-latest
-            python-version: "3.12"
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
@@ -82,11 +63,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
           cache: pip
 
       - name: Install Linux Qt runtime dependencies
-        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           COMMON_PACKAGES="\
