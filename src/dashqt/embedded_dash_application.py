@@ -86,7 +86,7 @@ class EmbeddedDashApplication(ABC):
                     self.__server_thread.join(timeout=5)
                 self.__exit_code = 1
                 # Proceed to finally block for stop notification
-            else:
+            else: 
                 # --- Both started successfully ---
                 started_successfully = True
                 self._logger.info("The Dash server and browser started successfully")
