@@ -11,7 +11,7 @@ on:
 
 jobs:
   lint:
-    name: lint
+    name: full-lint
     runs-on: ubuntu-22.04
 
     steps:
@@ -33,7 +33,7 @@ jobs:
         run: python -m ruff check src tests examples
 
   typecheck:
-    name: typecheck
+    name: full-typecheck
     runs-on: ubuntu-22.04
 
     steps:
@@ -55,7 +55,7 @@ jobs:
         run: python -m mypy
 
   test:
-    name: test (${{ matrix.os }}, py${{ matrix.python-version }})
+    name: full-test (${{ matrix.os }}, py${{ matrix.python-version }})
     needs: [lint, typecheck]
     runs-on: ${{ matrix.os }}
     strategy:

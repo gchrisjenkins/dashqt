@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint:
-    name: lint
+    name: fast-lint
     runs-on: ubuntu-22.04
 
     steps:
@@ -30,7 +30,7 @@ jobs:
         run: python -m ruff check src tests examples
 
   typecheck:
-    name: typecheck
+    name: fast-typecheck
     runs-on: ubuntu-22.04
 
     steps:
@@ -52,7 +52,7 @@ jobs:
         run: python -m mypy
 
   test:
-    name: test (ubuntu-22.04, py3.12)
+    name: fast-test (ubuntu-22.04, py3.12)
     needs: [lint, typecheck]
     runs-on: ubuntu-22.04
 
