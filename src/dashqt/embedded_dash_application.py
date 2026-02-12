@@ -8,23 +8,36 @@ from typing import Any, Callable
 
 import requests
 import werkzeug
-from PySide6.QtCore import (
-    QCoreApplication,
-    QEvent,
-    QMetaObject,
-    QMessageLogContext,
-    Qt,
-    QtMsgType,
-    QUrl,
-    qInstallMessageHandler,
-)
-from PySide6.QtGui import QColor
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QApplication, QMainWindow
 from dash import Dash, Input, Output
 from dash.development.base_component import Component
 from flask import Flask
 from plotly.graph_objs import Figure
+
+try:
+    from PySide6.QtCore import (
+        QEvent,
+        QMetaObject,
+        QMessageLogContext,
+        Qt,
+        QtMsgType,
+        QUrl,
+        qInstallMessageHandler,
+    )
+    from PySide6.QtGui import QColor
+    from PySide6.QtWebEngineWidgets import QWebEngineView
+    from PySide6.QtWidgets import QApplication, QMainWindow
+except ImportError as exc:
+    raise ImportError(
+        "Failed to import PySide6 Qt runtime dependencies. "
+        "Install Linux system libraries and try again: "
+        "`sudo apt-get update && COMMON_PACKAGES=\"libegl1 libgl1 "
+        "libxkbcommon-x11-0 libdbus-1-3 libnss3 libxcomposite1 "
+        "libxdamage1 libxrandr2\" && sudo apt-get install -y "
+        "--no-install-recommends $COMMON_PACKAGES libasound2t64 || "
+        "sudo apt-get install -y --no-install-recommends "
+        "$COMMON_PACKAGES libasound2`. "
+        "See README.md: Linux Runtime Dependencies."
+    ) from exc
 
 
 class EmbeddedDashApplicationListener(ABC):
@@ -409,10 +422,18 @@ class EmbeddedDashApplication(ABC):
         def run_forever(self) -> int:
             exit_code = 1
             try:
-                self._app = QCoreApplication.instance() or QApplication([])
+                existing_app = QApplication.instance()
+                if existing_app is None:
+                    app = QApplication([])
+                elif isinstance(existing_app, QApplication):
+                    app = existing_app
+                else:
+                    self._logger.error("Existing Qt application instance is not a QApplication")
+                    return exit_code
+                self._app = app
                 self._build_main_window()
                 # Blocks until the Qt event loop exits.
-                exit_code = self._app.exec()
+                exit_code = app.exec()
                 self._logger.debug("Browser event loop terminated with exit code: %s", exit_code)
             except Exception as exc:
                 self._logger.error("Error in browser event loop: %s", exc)
@@ -437,8 +458,8 @@ class EmbeddedDashApplication(ABC):
             # QueuedConnection schedules the close call in the Qt GUI event loop.
             request_successful = QMetaObject.invokeMethod(
                 self._main_window,
-                "close",
-                Qt.QueuedConnection,  # type: ignore[arg-type]
+                b"close",
+                Qt.ConnectionType.QueuedConnection,
             )
             if not request_successful:
                 self._logger.error("Failed to queue browser close request")

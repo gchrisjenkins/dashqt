@@ -1,6 +1,6 @@
 # Branch Protection Checklist
 
-Use this checklist to make sure `lint`, `typecheck`, and `test` must pass before merge.
+Use this checklist to make sure the full matrix checks must pass before merge to `main`.
 
 ## Recommended Rule
 
@@ -11,14 +11,25 @@ Use this checklist to make sure `lint`, `typecheck`, and `test` must pass before
 - [ ] Enable `Dismiss stale pull request approvals when new commits are pushed`
 - [ ] Enable `Require status checks to pass before merging`
 - [ ] Enable `Require branches to be up to date before merging`
-- [ ] Add required checks from workflow `CI`:
+- [ ] Add required checks from workflow `CI Full`:
 - [ ] `lint`
 - [ ] `typecheck`
-- [ ] `test (3.10)`
-- [ ] `test (3.11)`
-- [ ] `test (3.12)`
+- [ ] `test (ubuntu-22.04, py3.10)`
+- [ ] `test (ubuntu-22.04, py3.11)`
+- [ ] `test (ubuntu-22.04, py3.12)`
+- [ ] `test (ubuntu-22.04, py3.13)`
+- [ ] `test (ubuntu-latest, py3.12)`
+- [ ] `test (macos-latest, py3.12)`
 - [ ] Enable `Require conversation resolution before merging` (recommended)
 - [ ] Enable `Do not allow bypassing the above settings` (recommended for protected repos)
+
+## Optional Develop Rule
+
+- [ ] Add a separate branch protection rule for `develop`
+- [ ] Add required checks from workflow `CI Fast`:
+- [ ] `lint`
+- [ ] `typecheck`
+- [ ] `test (ubuntu-22.04, py3.12)`
 
 ## Optional Hardening
 
