@@ -1,42 +1,54 @@
 ## Summary
 
-**DashQt** embeds a Plotly Dash web application in a lightweight Qt window using PySide6’s WebEngine view. It launches a 
-local Flask/Dash server on an available port, then displays the app in a `QWebEngineView`. Closing the Qt window 
-triggers a clean shutdown of the server, making it easy to package interactive data‑science GUIs in pure Python without 
-requiring a full browser.
+[![CI](https://github.com/gchrisjenkins/dashqt/actions/workflows/ci.yml/badge.svg)](https://github.com/gchrisjenkins/dashqt/actions/workflows/ci.yml)
+
+**DashQt** embeds a Plotly Dash application in a Qt window via `PySide6.QtWebEngineWidgets.QWebEngineView`.
+It runs a local Dash/Flask server on an available port, loads it in Qt, and coordinates shutdown so closing the window stops the server.
 
 ## Installation
 
-Follow these steps to create a self‑contained Conda environment for DashQt:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e .
+```
 
-1. **Clone the repository**
+For development tools:
 
-   ```bash
-   git clone https://github.com/gchrisjenkins/dashqt.git
-   cd dashqt
-   ```
+```bash
+pip install -e .[dev]
+```
 
-2. **Create & activate a new Conda environment**
+Run tests:
 
-   ```bash
-   conda create --name dashqt python=3.11 -y
-   conda activate dashqt
-   ```
+```bash
+pytest
+```
 
-3. **Install PySide6 with WebEngine support**
+Run lint checks:
 
-   ```bash
-   conda install pyside6 pyqtwebengine -y
-   ```
+```bash
+ruff check src tests examples
+```
 
-4. **Install Python dependencies**
+Run type checks:
 
-   ```bash
-   pip install dash pandas
-   ```
+```bash
+mypy
+```
+
+## Quick Start
+
+Run the included example app:
+
+```bash
+python examples/example_dashqt_app.py
+```
 
 ## Notes
 
-* The `pyqtwebengine` package is required to provide `QtWebEngineWidgets`, as it is not included in the base `pyside6` package.
-* If you encounter any missing‑module errors for `QtWebEngineWidgets`, verify that `pyqtwebengine` is installed correctly.
-* For more information on Dash installation and usage, visit the [official Dash documentation](https://dash.plotly.com/installation).
+- `EmbeddedDashApplication` is an abstract base class; implement `_build_layout()` and `_build_callbacks()` in your subclass.
+- `exit_code` reports the final process status from the embedded server/browser lifecycle.
+- Qt WebEngine binaries come from `PySide6`; make sure your environment supports Qt WebEngine runtime dependencies.
+- Branch protection setup checklist: `.github/BRANCH_PROTECTION_CHECKLIST.md`.
