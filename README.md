@@ -1,6 +1,6 @@
 ## Summary
 
-[![CI](https://github.com/gchrisjenkins/dashqt/actions/workflows/ci.yml/badge.svg)](https://github.com/gchrisjenkins/dashqt/actions/workflows/ci.yml)
+[![CI](https://github.com/gchrisjenkins/dashqt/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/gchrisjenkins/dashqt/actions/workflows/ci.yml?query=branch%3Adevelop)
 
 **DashQt** embeds a Plotly Dash application in a Qt window via `PySide6.QtWebEngineWidgets.QWebEngineView`.
 It runs a local Dash/Flask server on an available port, loads it in Qt, and coordinates shutdown so closing the window stops the server.

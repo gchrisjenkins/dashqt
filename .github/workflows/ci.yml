@@ -2,9 +2,13 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
+      - develop
+  workflow_dispatch:
 
 jobs:
   lint:
