@@ -12,14 +12,14 @@ Use this checklist to make sure the full matrix checks must pass before merge to
 - [ ] Enable `Require status checks to pass before merging`
 - [ ] Enable `Require branches to be up to date before merging`
 - [ ] Add required checks from workflow `CI Full`:
-- [ ] `lint`
-- [ ] `typecheck`
-- [ ] `test (ubuntu-22.04, py3.10)`
-- [ ] `test (ubuntu-22.04, py3.11)`
-- [ ] `test (ubuntu-22.04, py3.12)`
-- [ ] `test (ubuntu-22.04, py3.13)`
-- [ ] `test (ubuntu-latest, py3.12)`
-- [ ] `test (macos-latest, py3.12)`
+- [ ] `full-lint`
+- [ ] `full-typecheck`
+- [ ] `full-test (ubuntu-22.04, py3.10)`
+- [ ] `full-test (ubuntu-22.04, py3.11)`
+- [ ] `full-test (ubuntu-22.04, py3.12)`
+- [ ] `full-test (ubuntu-22.04, py3.13)`
+- [ ] `full-test (ubuntu-latest, py3.12)`
+- [ ] `full-test (macos-latest, py3.12)`
 - [ ] Enable `Require conversation resolution before merging` (recommended)
 - [ ] Enable `Do not allow bypassing the above settings` (recommended for protected repos)
 
@@ -27,9 +27,9 @@ Use this checklist to make sure the full matrix checks must pass before merge to
 
 - [ ] Add a separate branch protection rule for `develop`
 - [ ] Add required checks from workflow `CI Fast`:
-- [ ] `lint`
-- [ ] `typecheck`
-- [ ] `test (ubuntu-22.04, py3.12)`
+- [ ] `fast-lint`
+- [ ] `fast-typecheck`
+- [ ] `fast-test (ubuntu-22.04, py3.12)`
 
 ## Optional Hardening
 
