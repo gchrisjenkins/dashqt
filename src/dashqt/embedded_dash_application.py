@@ -8,22 +8,33 @@ from typing import Any, Callable
 
 import requests
 import werkzeug
-from PySide6.QtCore import (
-    QEvent,
-    QMetaObject,
-    QMessageLogContext,
-    Qt,
-    QtMsgType,
-    QUrl,
-    qInstallMessageHandler,
-)
-from PySide6.QtGui import QColor
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QApplication, QMainWindow
 from dash import Dash, Input, Output
 from dash.development.base_component import Component
 from flask import Flask
 from plotly.graph_objs import Figure
+
+try:
+    from PySide6.QtCore import (
+        QEvent,
+        QMetaObject,
+        QMessageLogContext,
+        Qt,
+        QtMsgType,
+        QUrl,
+        qInstallMessageHandler,
+    )
+    from PySide6.QtGui import QColor
+    from PySide6.QtWebEngineWidgets import QWebEngineView
+    from PySide6.QtWidgets import QApplication, QMainWindow
+except ImportError as exc:
+    raise ImportError(
+        "Failed to import PySide6 Qt runtime dependencies. "
+        "Install Linux system libraries and try again: "
+        "`sudo apt-get update && sudo apt-get install -y --no-install-recommends "
+        "libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 libnss3 "
+        "libxcomposite1 libxdamage1 libxrandr2 libasound2`. "
+        "See README.md: Linux Runtime Dependencies."
+    ) from exc
 
 
 class EmbeddedDashApplicationListener(ABC):
