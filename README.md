@@ -15,7 +15,7 @@ For Debian/Ubuntu:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
+COMMON_PACKAGES="\
   libegl1 \
   libgl1 \
   libxkbcommon-x11-0 \
@@ -23,8 +23,9 @@ sudo apt-get install -y --no-install-recommends \
   libnss3 \
   libxcomposite1 \
   libxdamage1 \
-  libxrandr2 \
-  libasound2
+  libxrandr2"
+sudo apt-get install -y --no-install-recommends $COMMON_PACKAGES libasound2t64 || \
+  sudo apt-get install -y --no-install-recommends $COMMON_PACKAGES libasound2
 ```
 
 If these are missing, imports may fail with errors such as
