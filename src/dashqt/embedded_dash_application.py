@@ -408,7 +408,14 @@ class EmbeddedDashApplication(ABC):
         def run_forever(self) -> int:
             exit_code = 1
             try:
-                app = QApplication.instance() or QApplication([])
+                existing_app = QApplication.instance()
+                if existing_app is None:
+                    app = QApplication([])
+                elif isinstance(existing_app, QApplication):
+                    app = existing_app
+                else:
+                    self._logger.error("Existing Qt application instance is not a QApplication")
+                    return exit_code
                 self._app = app
                 self._build_main_window()
                 # Blocks until the Qt event loop exits.
