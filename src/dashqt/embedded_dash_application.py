@@ -15,6 +15,7 @@ from plotly.graph_objs import Figure
 
 try:
     from PySide6.QtCore import (
+        QCoreApplication,
         QEvent,
         QMetaObject,
         QMessageLogContext,
@@ -456,13 +457,25 @@ class EmbeddedDashApplication(ABC):
                 return
 
             # QueuedConnection schedules the close call in the Qt GUI event loop.
-            request_successful = QMetaObject.invokeMethod(
-                self._main_window,
-                b"close",
-                Qt.ConnectionType.QueuedConnection,
+            connection_type = (
+                Qt.ConnectionType.QueuedConnection
+                if hasattr(Qt, "ConnectionType")
+                else Qt.QueuedConnection
             )
+            try:
+                request_successful = QMetaObject.invokeMethod(
+                    self._main_window,
+                    "close",
+                    connection_type,
+                )
+            except Exception:
+                self._logger.warning("Failed to queue browser close request; posting close event", exc_info=True)
+                QCoreApplication.postEvent(self._main_window, QEvent(QEvent.Close))
+                return
+
             if not request_successful:
-                self._logger.error("Failed to queue browser close request")
+                self._logger.warning("Failed to queue browser close request; posting close event")
+                QCoreApplication.postEvent(self._main_window, QEvent(QEvent.Close))
             else:
                 self._logger.debug("Queued browser close request")
 
