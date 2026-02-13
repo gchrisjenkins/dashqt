@@ -4,7 +4,7 @@ import threading
 import time
 import traceback
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import requests
 import werkzeug
@@ -457,19 +457,23 @@ class EmbeddedDashApplication(ABC):
                 return
 
             # QueuedConnection schedules the close call in the Qt GUI event loop.
-            if hasattr(Qt, "ConnectionType"):
-                connection_type: Any = Qt.ConnectionType.QueuedConnection
-            else:
-                connection_type = getattr(Qt, "QueuedConnection")
+            connection_type: Any = (
+                Qt.ConnectionType.QueuedConnection
+                if hasattr(Qt, "ConnectionType")
+                else getattr(Qt, "QueuedConnection")
+            )
             try:
+                # PySide6 runtime expects str here on some builds, while stubs
+                # still type this parameter as bytes-like.
+                method_name = cast(Any, "close")
                 request_successful = QMetaObject.invokeMethod(
                     self._main_window,
-                    b"close",
+                    method_name,
                     connection_type,
                 )
             except Exception:
                 self._logger.warning("Failed to queue browser close request; posting close event", exc_info=True)
-                close_event_type = (
+                close_event_type: Any = (
                     QEvent.Type.Close if hasattr(QEvent, "Type") else getattr(QEvent, "Close")
                 )
                 QCoreApplication.postEvent(self._main_window, QEvent(close_event_type))
