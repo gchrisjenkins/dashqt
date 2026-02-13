@@ -457,25 +457,30 @@ class EmbeddedDashApplication(ABC):
                 return
 
             # QueuedConnection schedules the close call in the Qt GUI event loop.
-            connection_type = (
-                Qt.ConnectionType.QueuedConnection
-                if hasattr(Qt, "ConnectionType")
-                else Qt.QueuedConnection
-            )
+            if hasattr(Qt, "ConnectionType"):
+                connection_type: Any = Qt.ConnectionType.QueuedConnection
+            else:
+                connection_type = getattr(Qt, "QueuedConnection")
             try:
                 request_successful = QMetaObject.invokeMethod(
                     self._main_window,
-                    "close",
+                    b"close",
                     connection_type,
                 )
             except Exception:
                 self._logger.warning("Failed to queue browser close request; posting close event", exc_info=True)
-                QCoreApplication.postEvent(self._main_window, QEvent(QEvent.Close))
+                close_event_type = (
+                    QEvent.Type.Close if hasattr(QEvent, "Type") else getattr(QEvent, "Close")
+                )
+                QCoreApplication.postEvent(self._main_window, QEvent(close_event_type))
                 return
 
             if not request_successful:
                 self._logger.warning("Failed to queue browser close request; posting close event")
-                QCoreApplication.postEvent(self._main_window, QEvent(QEvent.Close))
+                close_event_type = (
+                    QEvent.Type.Close if hasattr(QEvent, "Type") else getattr(QEvent, "Close")
+                )
+                QCoreApplication.postEvent(self._main_window, QEvent(close_event_type))
             else:
                 self._logger.debug("Queued browser close request")
 
