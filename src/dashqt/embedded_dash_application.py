@@ -4,6 +4,7 @@ import threading
 import time
 import traceback
 from abc import ABC, abstractmethod
+from os import PathLike
 from typing import Any, Callable, cast
 
 import requests
@@ -60,6 +61,7 @@ class EmbeddedDashApplication(ABC):
         self,
         listener: EmbeddedDashApplicationListener | None = None,
         name: str | None = None,
+        assets_folder: str | PathLike[str] | None = None,
     ) -> None:
         cls = type(self)
         self._logger: logging.Logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
@@ -68,7 +70,10 @@ class EmbeddedDashApplication(ABC):
         self._name = name
 
         server = Flask(type(self).__name__)
-        self._server = Dash(type(self).__name__, server=server)
+        dash_kwargs: dict[str, Any] = {"server": server}
+        if assets_folder is not None:
+            dash_kwargs["assets_folder"] = str(assets_folder)
+        self._server = Dash(type(self).__name__, **dash_kwargs)
 
         @server.route("/health")
         def health_check() -> tuple[str, int]:
